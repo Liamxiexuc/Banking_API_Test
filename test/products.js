@@ -1,10 +1,13 @@
 import chai, { expect } from 'chai';
 import chaiSorted from 'chai-sorted';
 import faker from 'faker';
+import csv from 'csvtojson';
 import { getProducts } from '../helper/product_helper.js';
+import { getStandardProducts } from '../helper/csv_helper.js';
 import { isObject, isValidURL, isNaturalNumber, isArray } from '../utils/type.js';
 import { PAGINATION } from '../rules/products.js';
-import { EFFECTIVE } from '../constants/enum.js';
+import { EFFECTIVE, PRODUCT_CATEGORY, PRODUCT_CATEGORY_ARRAY } from '../constants/enum.js';
+import { BankingProductV3Schema } from '../schema/BankingProductV3.js';
 import { getProductsByEffective } from '../utils/tool.js';
 import qa from '../config/qa.js';
 
@@ -12,6 +15,12 @@ chai.use(chaiSorted);
 
 describe('Get Products', () => {
   let productsData;
+  let standardProducts;
+
+  before(async () => {
+    standardProducts = await getStandardProducts();
+  })
+
   describe('Get Products without query string', () => {
     before(async () => {
       productsData = await getProducts();
@@ -237,6 +246,41 @@ describe('Get Products', () => {
         const { products } = productsData.body.data;
         const inValidProducts = products.filter(product => product.brand !== qa.brand);
         expect(inValidProducts.length).to.be.eq(0);
+      })
+    })
+
+    describe('Get Products with product-category query', () => {
+      it('return error when enter invalid product-category value', async () => {
+        const randomCategory = faker.lorem.word();
+        if (!PRODUCT_CATEGORY[randomCategory]) {
+          productsData = await getProducts(`product-category=${randomCategory}`);
+          expect(productsData.status).to.be.eq(400);
+          expect(productsData.body.errors[0].title).to.be.eq('Invalid query string parameter value');
+        }
+      })
+
+      it.only('return correct data structure when enter a valid product-category value', async () => {
+        // TODO Do we need to pass all the product-category separately, and run the test?
+        // For now, we just pass a valid category randomly
+        const randomIndex = faker.datatype.number(PRODUCT_CATEGORY_ARRAY.length - 1);
+        const randomCategory = PRODUCT_CATEGORY_ARRAY[randomIndex];
+        productsData = await getProducts(`product-category=${randomCategory}`);
+        let error = null;
+        const { products } = productsData.body.data;
+        if (products.length) {
+          await products.forEach(product => {
+            const res = BankingProductV3Schema.validate(product)
+            if (res.error) {
+              error = res.error;
+            }
+          })
+        }
+        let errorMsg = error ? error.details[0].message : null;
+        expect(error).to.be.eq(null, errorMsg);
+      })
+
+      it('return correct data value when enter valid product-category value', async () => {
+
       })
     })
   })
