@@ -217,6 +217,43 @@ describe('Get Products', () => {
           }
         })
       })
+  })
+
+    describe('Get Products with page-size query', () => {
+      let totalRecords;
+      context('get correct response when type of page-size query parameter is wrong', () => {
+        it('validate query string parameter value', async () => {
+          const randowValue = faker.lorem.word();
+          if (!Number.isFinite(randowValue)) {
+            productsData = await getProducts(`page-size=${randowValue}`)
+            expect(productsData.status).to.be.eq(400);
+            expect(productsData.body.errors[0].title).to.be.eq('Invalid query string parameter value')
+          }
+        })
+      })
+
+      context('get correct page size when there is correct parameter page-size query', () => {
+        let pageSize;
+        pageSize = faker.random.number(65);
+        before(async () => {
+          productsData = await getProducts(`page-size=${pageSize}`);
+          totalRecords = productsData.body.meta.totalRecords;
+        })
+
+        it('having correct page-size when query less than totalRecords', () => {
+          if (pageSize < totalRecords) {
+            const { products } = productsData.body.data;
+            expect(products).to.have.lengthOf(pageSize);
+          }
+        })
+
+        it('having correct page-size when query more than totalRecords', () => {
+          if (pageSize > totalRecords) {
+            const { products } = productsData.body.data;
+            expect(products).to.have.lengthOf(totalRecords);
+          }
+        })
+      })
     })
 
     describe('Get Products with page-size query', () => {
